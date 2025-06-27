@@ -1,0 +1,54 @@
+# .github/workflows/package-and-publish-deb.yml
+name: Package & Publish .deb via FPM
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Toxiproxy version (e.g. 2.1.4)'
+        required: true
+
+jobs:
+  package-and-publish:
+    runs-on: ubuntu-latest
+    env:
+      PACKAGE_NAME: toxiproxy
+      VERSION: ${{ github.event.inputs.version }}
+      CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
+      CLOUDSMITH_OWNER:   ${{ secrets.CLOUDSMITH_OWNER }}
+      CLOUDSMITH_REPO:    ${{ secrets.CLOUDSMITH_REPO }}
+      DISTRO:             ubuntu
+      RELEASE:            focal
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Install FPM & deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ruby-dev build-essential fakeroot dpkg-dev
+          sudo gem install --no-document fpm
+
+      - name: Package with FPM
+        run: |
+          fpm -f -s dir -t deb \
+            -n "${{ env.PACKAGE_NAME }}" \
+            -v "${{ env.VERSION }}" \
+            --architecture amd64 \
+            --prefix /usr/local/bin \
+            dist/toxiproxy-server \
+            dist/toxiproxy-cli
+
+      - name: Push to Cloudsmith
+        uses: cloudsmith-io/action@master
+        with:
+          api-key:  ${{ env.CLOUDSMITH_API_KEY }}
+          command:  push
+          format:   deb
+          owner:    ${{ env.CLOUDSMITH_OWNER }}
+          repo:     ${{ env.CLOUDSMITH_REPO }}
+          distro:   ${{ env.DISTRO }}
+          release:  ${{ env.RELEASE }}
+          file:     "${{ env.PACKAGE_NAME }}_${{ env.VERSION }}_amd64.deb"
+
