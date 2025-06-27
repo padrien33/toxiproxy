@@ -2,12 +2,9 @@
 name: Package & Publish .deb via FPM
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Toxiproxy version (e.g. 2.1.4)'
-        required: true
-
+  push:
+    branches:
+      - main
 jobs:
   package-and-publish:
     runs-on: ubuntu-latest
