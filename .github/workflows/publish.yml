@@ -50,6 +50,6 @@ jobs:
           repo:     ${{ env.CLOUDSMITH_REPO }}
           distro:   ${{ env.DISTRO }}
           release:  ${{ env.RELEASE }}
-          file:     toxiproxy_${{ env.VERSION }}_amd64.deb
+          file:     toxiproxy_${{ env.VERSION }}.deb
           republish: 'true'
 
