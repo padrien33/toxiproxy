@@ -1,15 +1,20 @@
 # .github/workflows/fetch-and-publish-deb.yml
-name: Fetch & Publish Toxiproxy .deb
+name: Fetch & Publish Specific Toxiproxy .deb
 
+# Manually run this workflow and enter the version you want to fetch
 on:
-  push:
-    tags:
-      - 'v*'       # runs whenever you push a tag like v2.12.1
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Toxiproxy version (e.g. 2.1.4)'
+        required: true
+        default: '2.1.4'
 
 jobs:
   fetch-and-publish:
     runs-on: ubuntu-latest
     env:
+      # These must be set in Settings → Secrets
       CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
       CLOUDSMITH_OWNER:   ${{ secrets.CLOUDSMITH_OWNER }}
       CLOUDSMITH_REPO:    ${{ secrets.CLOUDSMITH_REPO }}
@@ -17,27 +22,23 @@ jobs:
       RELEASE:            focal
 
     steps:
-      - name: Checkout (fetch tags)
+      - name: Checkout repository
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0        # ensure we have the tag refs
 
-      - name: Derive VERSION & TAG
+      - name: Set VERSION & TAG
         run: |
-          # GITHUB_REF is refs/tags/vX.Y.Z
-          TAG=${GITHUB_REF#refs/tags/}
-          VERSION=${TAG#v}
-          echo "TAG=$TAG"       >> $GITHUB_ENV
+          VERSION=${{ github.event.inputs.version }}
+          TAG=v${VERSION}
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Will package version $VERSION from tag $TAG"
+          echo "TAG=$TAG"         >> $GITHUB_ENV
 
-      - name: Download .deb from GitHub Releases
+      - name: Download the .deb from GitHub Releases
         run: |
-          wget -qO toxiproxy_${VERSION}.deb \
-            https://github.com/Shopify/toxiproxy/releases/download/${TAG}/toxiproxy_${VERSION}_amd64.deb
+          wget -qO toxiproxy_${{ env.VERSION }}.deb \
+            https://github.com/Shopify/toxiproxy/releases/download/${{ env.TAG }}/toxiproxy_${{ env.VERSION }}_amd64.deb
 
       - name: Verify download
-        run: ls -lh toxiproxy_${VERSION}.deb
+        run: ls -lh toxiproxy_${{ env.VERSION }}.deb
 
       - name: Push to Cloudsmith
         uses: cloudsmith-io/action@master
@@ -50,4 +51,5 @@ jobs:
           distro:   ${{ env.DISTRO }}
           release:  ${{ env.RELEASE }}
           file:     toxiproxy_${{ env.VERSION }}_amd64.deb
+          republish: 'true'
 
