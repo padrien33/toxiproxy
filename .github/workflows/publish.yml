@@ -1,57 +1,53 @@
-# .github/workflows/package-and-publish-deb.yml
-name: Package & Publish .deb via FPM
+# .github/workflows/fetch-and-publish-deb.yml
+name: Fetch & Publish Toxiproxy .deb
 
 on:
   push:
     tags:
-      - 'v*'              # run on tag pushes, e.g. v2.1.4
+      - 'v*'       # runs whenever you push a tag like v2.12.1
 
 jobs:
-  package-and-publish:
+  fetch-and-publish:
     runs-on: ubuntu-latest
     env:
-      PACKAGE_NAME: toxiproxy
-      # CLOUDSMITH_* secrets as before
-      DISTRO: ubuntu
-      RELEASE: focal
+      CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
+      CLOUDSMITH_OWNER:   ${{ secrets.CLOUDSMITH_OWNER }}
+      CLOUDSMITH_REPO:    ${{ secrets.CLOUDSMITH_REPO }}
+      DISTRO:             ubuntu
+      RELEASE:            focal
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout (fetch tags)
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0        # ensure we have the tag refs
 
-      - name: Fetch all tags
-        run: git fetch --tags
-
-      - name: Derive version from tag
+      - name: Derive VERSION & TAG
         run: |
-          TAG=${GITHUB_REF#refs/tags/}        # e.g. "v2.1.4"
-          echo "VERSION=${TAG#v}" >> $GITHUB_ENV   # strip leading "v"
-          echo "Derived version: $VERSION"
+          # GITHUB_REF is refs/tags/vX.Y.Z
+          TAG=${GITHUB_REF#refs/tags/}
+          VERSION=${TAG#v}
+          echo "TAG=$TAG"       >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Will package version $VERSION from tag $TAG"
 
-      - name: Install FPM & deps
+      - name: Download .deb from GitHub Releases
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ruby-dev build-essential fakeroot dpkg-dev
-          sudo gem install --no-document fpm
+          wget -qO toxiproxy_${VERSION}.deb \
+            https://github.com/Shopify/toxiproxy/releases/download/${TAG}/toxiproxy_${VERSION}_amd64.deb
 
-      - name: Package with FPM
-        run: |
-          fpm -f -s dir -t deb \
-            -n "${{ env.PACKAGE_NAME }}" \
-            -v "${{ env.VERSION }}" \
-            --architecture amd64 \
-            --prefix /usr/local/bin \
-            dist/toxiproxy-server \
-            dist/toxiproxy-cli
+      - name: Verify download
+        run: ls -lh toxiproxy_${VERSION}.deb
 
       - name: Push to Cloudsmith
         uses: cloudsmith-io/action@master
         with:
-          api-key:  ${{ secrets.CLOUDSMITH_API_KEY }}
+          api-key:  ${{ env.CLOUDSMITH_API_KEY }}
           command:  push
           format:   deb
-          owner:    ${{ secrets.CLOUDSMITH_OWNER }}
-          repo:     ${{ secrets.CLOUDSMITH_REPO }}
+          owner:    ${{ env.CLOUDSMITH_OWNER }}
+          repo:     ${{ env.CLOUDSMITH_REPO }}
           distro:   ${{ env.DISTRO }}
           release:  ${{ env.RELEASE }}
-          file:     "toxiproxy_${{ env.VERSION }}_amd64.deb"
+          file:     toxiproxy_${{ env.VERSION }}_amd64.deb
 
