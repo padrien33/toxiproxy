@@ -1,5 +1,5 @@
 # .github/workflows/fetch-and-publish-deb.yml
-name: Fetch & Publish Specific Toxiproxy .deb
+name: Fetch &  Publish Toxiproxy debian package
 
 # Manually run this workflow and enter the version you want to fetch
 on:
@@ -35,7 +35,7 @@ jobs:
       - name: Download the .deb from GitHub Releases
         run: |
           wget -qO toxiproxy_${{ env.VERSION }}.deb \
-            https://github.com/Shopify/toxiproxy/releases/download/${{ env.TAG }}/toxiproxy_${{ env.VERSION }}_amd64.deb
+            https://github.com/Shopify/toxiproxy/releases/download/${{ env.TAG }}/toxiproxy_${{ env.VERSION }}_linux_amd64.deb
 
       - name: Verify download
         run: ls -lh toxiproxy_${{ env.VERSION }}.deb
