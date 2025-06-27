@@ -3,23 +3,29 @@ name: Package & Publish .deb via FPM
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'v*'              # run on tag pushes, e.g. v2.1.4
+
 jobs:
   package-and-publish:
     runs-on: ubuntu-latest
     env:
       PACKAGE_NAME: toxiproxy
-      VERSION: ${{ github.event.inputs.version }}
-      CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
-      CLOUDSMITH_OWNER:   ${{ secrets.CLOUDSMITH_OWNER }}
-      CLOUDSMITH_REPO:    ${{ secrets.CLOUDSMITH_REPO }}
-      DISTRO:             ubuntu
-      RELEASE:            focal
+      # CLOUDSMITH_* secrets as before
+      DISTRO: ubuntu
+      RELEASE: focal
 
     steps:
-      - name: Check out code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
+
+      - name: Fetch all tags
+        run: git fetch --tags
+
+      - name: Derive version from tag
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}        # e.g. "v2.1.4"
+          echo "VERSION=${TAG#v}" >> $GITHUB_ENV   # strip leading "v"
+          echo "Derived version: $VERSION"
 
       - name: Install FPM & deps
         run: |
@@ -40,12 +46,12 @@ jobs:
       - name: Push to Cloudsmith
         uses: cloudsmith-io/action@master
         with:
-          api-key:  ${{ env.CLOUDSMITH_API_KEY }}
+          api-key:  ${{ secrets.CLOUDSMITH_API_KEY }}
           command:  push
           format:   deb
-          owner:    ${{ env.CLOUDSMITH_OWNER }}
-          repo:     ${{ env.CLOUDSMITH_REPO }}
+          owner:    ${{ secrets.CLOUDSMITH_OWNER }}
+          repo:     ${{ secrets.CLOUDSMITH_REPO }}
           distro:   ${{ env.DISTRO }}
           release:  ${{ env.RELEASE }}
-          file:     "${{ env.PACKAGE_NAME }}_${{ env.VERSION }}_amd64.deb"
+          file:     "toxiproxy_${{ env.VERSION }}_amd64.deb"
 
